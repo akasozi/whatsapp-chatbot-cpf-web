@@ -13,7 +13,99 @@ A frontend portal for human agents to handle WhatsApp conversations transferred 
 - Notifications and alerts system
 - Responsive design with dark/light mode support
 
-## Conversation & Issue Management
+## Conversation, Query & Issue Management
+
+### Difference Between Queries and Conversations
+
+#### Conceptual Differences
+
+**Conversation:**
+- The entire communication thread between a customer and agent(s)
+- Contains all messages exchanged over time, regardless of topic
+- Represents the complete interaction history with a customer
+- Primarily a communication channel and record
+- Bound to a specific medium (WhatsApp in this case)
+- Continues across multiple topics and requests
+- May span days, weeks, or months
+
+**Query:**
+- A specific request, question, or issue raised within a conversation
+- Has a defined lifecycle (creation, processing, resolution)
+- Focused on tracking a single customer need until completion
+- Primarily a workflow and tracking mechanism
+- Medium-agnostic (can be tracked across channels)
+- Has specific SLAs, ownership, and resolution criteria
+- Usually resolved in hours or days
+
+#### Technical Differences
+
+| Aspect | Conversation | Query |
+|--------|--------------|-------|
+| **Purpose** | Communication record | Issue tracking |
+| **Lifecycle** | Open-ended, continuous | Defined start and end |
+| **Structure** | Sequential messages | Structured workflow |
+| **Primary Key** | Customer phone number | Issue identifier |
+| **Ownership** | May transfer between agents | Assigned to specific agent |
+| **Resolution** | Never formally "resolved" | Explicitly marked resolved |
+| **Metrics** | Response time, volume | Resolution time, SLA compliance |
+| **Content** | Raw messages, media, attachments | Categorized issue data, status updates |
+
+#### System Implementation Examples
+
+**Conversation Data Model:**
+```javascript
+{
+  id: "conv-123",
+  customer_name: "John Doe",
+  phone_number: "+1234567890",
+  status: "ACTIVE", // or INACTIVE, TRANSFERRED
+  created_at: "2023-07-12T14:30:00Z",
+  updated_at: "2023-07-15T09:20:00Z",
+  unread_count: 2,
+  agent_id: "agent-456",
+  messages: [
+    {
+      id: "msg-789",
+      content: "Hello, I need my statement",
+      sender_type: "CUSTOMER",
+      timestamp: "2023-07-12T14:30:00Z",
+      read: true
+    },
+    // More messages in chronological order
+  ]
+}
+```
+
+**Query Data Model:**
+```javascript
+{
+  id: "query-456",
+  conversation_id: "conv-123", // Reference to parent conversation
+  customer_id: "cust-789",
+  query_type: "STATEMENT_REQUEST",
+  subject: "February 2023 Contribution Statement",
+  description: "Customer requested statement for Feb 2023 to be sent to email@example.com",
+  status: "IN_PROGRESS", // NEW, WAITING_CUSTOMER, RESOLVED, etc.
+  priority: "MEDIUM",
+  created_at: "2023-07-12T14:35:00Z",
+  due_by: "2023-07-13T14:35:00Z", // Based on SLA
+  assigned_to: "agent-456",
+  followup_required: true,
+  followup_date: "2023-07-14T14:35:00Z",
+  resolution_notes: "",
+  activities: [
+    {
+      timestamp: "2023-07-12T15:20:00Z",
+      action: "STATUS_CHANGED",
+      from: "NEW",
+      to: "IN_PROGRESS",
+      performed_by: "agent-456",
+      notes: "Started processing statement request"
+    }
+    // More activity records
+  ]
+}
+```
 
 ### Continuous Conversation Model
 

@@ -4,6 +4,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Conversations from './pages/Conversations';
 import ConversationView from './pages/ConversationView';
+import Applications from './pages/Applications';
+import ApplicationDetails from './pages/ApplicationDetails';
 
 const NotFound = () => (
   <div className="flex flex-col items-center justify-center min-h-screen">
@@ -49,6 +51,18 @@ function App() {
           <Route path="/conversations/:id" element={
             <ProtectedRoute>
               <ConversationView />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/applications" element={
+            <ProtectedRoute>
+              <Applications />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/applications/:id" element={
+            <ProtectedRoute>
+              <ApplicationDetails />
             </ProtectedRoute>
           } />
           

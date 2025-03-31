@@ -152,20 +152,32 @@ const MessageInput = ({
         
         {/* Text input */}
         <form onSubmit={handleSendMessage} className="flex-1 flex items-center pr-2">
-          <textarea
-            className="flex-1 py-2 px-3 resize-none focus:outline-none text-gray-800 max-h-20"
-            placeholder="Type a message"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={1}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage(e);
-              }
-            }}
-            disabled={isLoading}
-          />
+          <div className="relative flex-1">
+            <textarea
+              className="w-full py-2 px-3 resize-none focus:outline-none text-gray-800 min-h-[40px] max-h-32 overflow-auto"
+              placeholder="Type a message (Shift+Enter for new line)"
+              value={message}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                // Auto-adjust height based on content
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 128) + 'px';
+              }}
+              rows={1}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage(e);
+                }
+              }}
+              disabled={isLoading}
+            />
+            {message.split('\n').length > 1 && (
+              <div className="absolute bottom-1 right-1 bg-gray-100 rounded-md px-1 py-0.5 text-[10px] text-gray-500">
+                Multiline message
+              </div>
+            )}
+          </div>
           
           {/* Send button */}
           <button 

@@ -5,6 +5,7 @@ import {
   fetchConversationDetails, 
   selectConversation 
 } from '../redux/slices/conversationsSlice';
+import { fetchApplications } from '../redux/slices/applicationsSlice';
 import { 
   fetchIssues,
   fetchIssueDetails,
@@ -53,6 +54,15 @@ const ConversationView = () => {
   const issueIds = id ? (issuesByConversation[id] || []) : [];
   const issues = issueIds.map(issueId => issuesById[issueId]).filter(Boolean);
   
+  // Get applications for this customer's phone number
+  const applications = useSelector((state) => {
+    const phone = conversation?.phone_number;
+    if (!phone) return [];
+    return state.applications.allIds
+      .map(id => state.applications.byId[id])
+      .filter(app => app.customer.phone_number === phone);
+  });
+  
   // Get the selected issue
   const selectedIssue = selectedIssueId ? issuesById[selectedIssueId] : null;
   
@@ -70,6 +80,9 @@ const ConversationView = () => {
       
       // Fetch issues for this conversation
       dispatch(fetchIssues(id));
+      
+      // Fetch applications (to find any linked to this customer)
+      dispatch(fetchApplications());
     }
     
     // Cleanup on unmount
@@ -182,6 +195,34 @@ const ConversationView = () => {
                     <span className="text-muted-foreground">Customer ID:</span>
                     <span>{conversation.metadata.customer_id}</span>
                   </div>
+                  
+                  {/* Application link if available */}
+                  {applications.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-muted">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Applications:</span>
+                        <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-xs font-medium">
+                          {applications.length}
+                        </span>
+                      </div>
+                      {applications.map(app => (
+                        <div key={app.id} className="mt-1">
+                          <a 
+                            href={`/applications/${app.id}`} 
+                            className="text-indigo-600 hover:underline flex items-center"
+                          >
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            IPP Application
+                            <span className="ml-1 text-xs bg-gray-100 px-1 rounded">
+                              {app.status.replace(/_/g, ' ')}
+                            </span>
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

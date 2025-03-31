@@ -58,6 +58,18 @@ const MessageList = ({
     }
   };
   
+  // Format agent info for display
+  const getAgentInfo = (message) => {
+    if (message.source !== 'AGENT') return null;
+    
+    const agentName = message.sender_name || 'Agent';
+    const responseTime = message.response_time_seconds 
+      ? `${Math.round(message.response_time_seconds / 60)} min response` 
+      : null;
+      
+    return { agentName, responseTime };
+  };
+  
   // Handle attaching a message to the current issue
   const handleAttachToIssue = (messageId) => {
     if (!currentIssueId) return;
@@ -102,8 +114,20 @@ const MessageList = ({
             {/* Message bubble */}
             <div className={`max-w-[70%] group ${message.source === 'USER' ? 'ml-auto' : 'mr-auto'}`}>
               <div className={`rounded-lg p-3 shadow-sm relative ${getMessageClasses(message)}`}>
+                {/* Agent info for agent messages */}
+                {message.source === 'AGENT' && (
+                  <div className="mb-1 -mt-1 text-[10px] text-gray-500 font-medium">
+                    {message.sender_name || 'Agent'}
+                    {message.response_time_seconds && (
+                      <span className="ml-2 text-green-600">
+                        {Math.round(message.response_time_seconds / 60)}m response
+                      </span>
+                    )}
+                  </div>
+                )}
+                
                 {/* Message content */}
-                <div className="whitespace-pre-wrap text-sm">
+                <div className="whitespace-pre-wrap text-sm break-words">
                   {message.content}
                 </div>
                 
@@ -156,8 +180,20 @@ const MessageList = ({
       return (
         <div key={message.id} className={`max-w-[70%] group ${message.source === 'USER' ? 'ml-auto' : 'mr-auto'}`}>
           <div className={`rounded-lg p-3 shadow-sm relative ${getMessageClasses(message)}`}>
+            {/* Agent info for agent messages */}
+            {message.source === 'AGENT' && (
+              <div className="mb-1 -mt-1 text-[10px] text-gray-500 font-medium">
+                {message.sender_name || 'Agent'}
+                {message.response_time_seconds && (
+                  <span className="ml-2 text-green-600">
+                    {Math.round(message.response_time_seconds / 60)}m response
+                  </span>
+                )}
+              </div>
+            )}
+            
             {/* Message content */}
-            <div className="whitespace-pre-wrap text-sm">
+            <div className="whitespace-pre-wrap text-sm break-words">
               {message.content}
             </div>
             

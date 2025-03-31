@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { fetchConversations } from '../redux/slices/conversationsSlice';
+import { fetchApplications, selectAllApplications } from '../redux/slices/applicationsSlice';
 import DashboardLayout from '../layouts/DashboardLayout';
 import StatCard from '../components/dashboard/StatCard';
 import DashboardSection from '../components/dashboard/DashboardSection';
@@ -18,6 +19,10 @@ const Dashboard = () => {
   const conversations = allIds.map(id => byId[id]);
   const conversationsLoading = loadingStatus.fetchConversations === 'pending';
   
+  // Get application data
+  const applications = useSelector(selectAllApplications);
+  const applicationsLoading = useSelector((state) => state.applications.loadingStatus.fetchApplications === 'pending');
+  
   // Local state for additional dashboard data
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
@@ -33,6 +38,9 @@ const Dashboard = () => {
       try {
         // Fetch conversations from Redux
         dispatch(fetchConversations());
+        
+        // Fetch applications from Redux
+        dispatch(fetchApplications());
         
         // Fetch additional dashboard data
         const [statsData, activitiesData, performanceData] = await Promise.all([
@@ -101,7 +109,7 @@ const Dashboard = () => {
         </DashboardSection>
         
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <StatCard
             title="Pending Conversations"
             value={
@@ -137,6 +145,27 @@ const Dashboard = () => {
           />
           
           <StatCard
+            title="IPP Applications"
+            value={
+              applicationsLoading
+                ? '...'
+                : applications.length
+            }
+            icon={
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            }
+            iconClass="bg-indigo-100 text-indigo-600"
+            isLoading={applicationsLoading}
+            description={
+              <Link to="/applications" className="text-indigo-600 hover:underline">
+                View all applications
+              </Link>
+            }
+          />
+          
+          <StatCard
             title="Avg. Response Time"
             value={isLoading ? '...' : `${stats?.averageResponseTime || 0}m`}
             icon={
@@ -167,7 +196,7 @@ const Dashboard = () => {
           />
         </div>
         
-        {/* Main Content */}
+        {/* Main Content - First Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Recent Conversations */}
           <div className="md:col-span-2">
@@ -255,6 +284,89 @@ const Dashboard = () => {
               />
             </DashboardSection>
           </div>
+        </div>
+        
+        {/* Main Content - Second Row */}
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+          {/* Recent Applications */}
+          <DashboardSection 
+            title="Recent IPP Applications"
+            isLoading={applicationsLoading}
+            action={
+              <Link to="/applications">
+                <Button variant="link" size="sm">View All IPP Applications</Button>
+              </Link>
+            }
+          >
+            {applicationsLoading ? (
+              <LoadingSkeleton type="table" count={3} />
+            ) : applications.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="bg-muted/50 border-b">
+                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Customer</th>
+                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Form Type</th>
+                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Submitted</th>
+                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {applications.slice(0, 3).map((application) => (
+                      <tr key={application.id} className="hover:bg-muted/30">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 text-sm font-medium">
+                              {application.customer.name.charAt(0)}
+                            </div>
+                            <div className="ml-3">
+                              <p className="text-sm font-medium">{application.customer.name}</p>
+                              <p className="text-xs text-muted-foreground">{application.customer.phone_number}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-sm">{application.form_type}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            application.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-800' :
+                            application.status === 'PENDING_DOCUMENTS' ? 'bg-yellow-100 text-yellow-800' :
+                            application.status === 'UNDER_REVIEW' ? 'bg-purple-100 text-purple-800' :
+                            application.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                            application.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {application.status.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-muted-foreground">
+                          {new Date(application.submission_date).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 px-4 text-sm">
+                          <Link
+                            to={`/applications/${application.id}`}
+                            className="text-indigo-600 hover:text-indigo-900 mr-3"
+                          >
+                            View
+                          </Link>
+                          <Link
+                            to={`/conversations/${application.conversation_id}`}
+                            className="text-gray-600 hover:text-gray-900"
+                          >
+                            Chat
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No applications found
+              </div>
+            )}
+          </DashboardSection>
         </div>
         
         {/* Performance Stats */}

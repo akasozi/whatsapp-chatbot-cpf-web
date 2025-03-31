@@ -269,13 +269,22 @@ export const mockMessagesData = [
     id: "msg-1005",
     conversation_id: "conv-123",
     issue_id: "issue-101",
-    content: "My reference number is CPF-1234-5678.",
+    content: "My reference number is CPF-1234-5678. I'm also attaching a screenshot of my application status page.",
     created_at: "2023-07-10T14:25:12Z",
     direction: "INBOUND",
     source: "USER",
     sender_id: "cust-456",
     sender_name: "John Doe",
-    attachments: []
+    attachments: [
+      {
+        id: "att-001",
+        name: "application_status_screenshot.png",
+        type: "image/png",
+        size: 528901,
+        url: "https://example.com/attachments/application_status_screenshot.png",
+        thumbnail_url: "https://example.com/attachments/thumbnails/application_status_screenshot.png"
+      }
+    ]
   },
   
   // Conversation 124
@@ -319,13 +328,23 @@ export const mockMessagesData = [
     id: "msg-2004",
     conversation_id: "conv-124",
     issue_id: "issue-201",
-    content: "Hello Jane, I'm Agent Demo. I'll help you check on your claim status. Could you please provide your claim reference number?",
+    content: "Hello Jane, I'm Agent Demo. I'll help you check on your claim status. Could you please provide your claim reference number? I've attached our claim tracking guide to help you understand the process.",
     created_at: "2023-07-11T09:25:33Z",
     direction: "OUTBOUND",
     source: "AGENT",
     sender_id: "agent-789",
     sender_name: "Agent Demo",
-    attachments: []
+    response_time_seconds: 320,
+    attachments: [
+      {
+        id: "att-003",
+        name: "claim_tracking_guide.pdf",
+        type: "application/pdf",
+        size: 1842567,
+        url: "https://example.com/attachments/claim_tracking_guide.pdf",
+        thumbnail_url: "https://example.com/attachments/thumbnails/claim_tracking_guide.pdf"
+      }
+    ]
   },
   {
     id: "msg-2005",
@@ -352,12 +371,13 @@ export const mockMessagesData = [
     id: "msg-2006",
     conversation_id: "conv-124",
     issue_id: "issue-201",
-    content: "Thank you for the reference number and screenshot. I can see that your claim is currently in the verification stage. The typical processing time is 3-4 weeks, so it's still within the expected timeframe. Here's our detailed claims timeline document for your reference.",
+    content: "Thank you for the reference number and screenshot. I can see that your claim is currently in the verification stage.\n\nThe typical processing time is 3-4 weeks, so it's still within the expected timeframe.\n\nHere's what happens next:\n1. Verification (where your claim is now)\n2. Assessment\n3. Approval\n4. Payment processing\n\nI've attached our detailed claims timeline document for your reference.",
     created_at: "2023-07-11T09:45:18Z",
     direction: "OUTBOUND",
     source: "AGENT",
     sender_id: "agent-789",
     sender_name: "Agent Demo",
+    response_time_seconds: 410,
     attachments: [
       {
         id: "att-002",

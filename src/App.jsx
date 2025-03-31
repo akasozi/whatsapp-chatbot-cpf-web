@@ -6,6 +6,8 @@ import Conversations from './pages/Conversations';
 import ConversationView from './pages/ConversationView';
 import Applications from './pages/Applications';
 import ApplicationDetails from './pages/ApplicationDetails';
+import LibApplications from './pages/LibApplications';
+import LibApplicationDetails from './pages/LibApplicationDetails';
 
 const NotFound = () => (
   <div className="flex flex-col items-center justify-center min-h-screen">
@@ -54,6 +56,7 @@ function App() {
             </ProtectedRoute>
           } />
           
+          {/* IPP Applications Routes */}
           <Route path="/applications" element={
             <ProtectedRoute>
               <Applications />
@@ -63,6 +66,19 @@ function App() {
           <Route path="/applications/:id" element={
             <ProtectedRoute>
               <ApplicationDetails />
+            </ProtectedRoute>
+          } />
+          
+          {/* LIB Flex Applications Routes */}
+          <Route path="/lib-applications" element={
+            <ProtectedRoute>
+              <LibApplications />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/lib-applications/:id" element={
+            <ProtectedRoute>
+              <LibApplicationDetails />
             </ProtectedRoute>
           } />
           

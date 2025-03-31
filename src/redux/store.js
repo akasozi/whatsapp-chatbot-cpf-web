@@ -3,13 +3,15 @@ import authReducer from './slices/authSlice';
 import conversationsReducer from './slices/conversationsSlice';
 import issuesReducer from './slices/issuesSlice';
 import applicationsReducer from './slices/applicationsSlice';
+import libApplicationsReducer from './slices/libApplicationsSlice';
 
 const store = configureStore({
   reducer: {
     auth: authReducer,
     conversations: conversationsReducer,
     issues: issuesReducer,
-    applications: applicationsReducer
+    applications: applicationsReducer,
+    libApplications: libApplicationsReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

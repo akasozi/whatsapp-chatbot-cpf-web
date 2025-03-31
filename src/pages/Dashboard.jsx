@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { fetchConversations } from '../redux/slices/conversationsSlice';
 import { fetchApplications, selectAllApplications } from '../redux/slices/applicationsSlice';
+import { fetchLibApplications, selectAllLibApplications } from '../redux/slices/libApplicationsSlice';
 import DashboardLayout from '../layouts/DashboardLayout';
 import StatCard from '../components/dashboard/StatCard';
 import DashboardSection from '../components/dashboard/DashboardSection';
@@ -23,6 +24,10 @@ const Dashboard = () => {
   const applications = useSelector(selectAllApplications);
   const applicationsLoading = useSelector((state) => state.applications.loadingStatus.fetchApplications === 'pending');
   
+  // Get LIB application data
+  const libApplications = useSelector(selectAllLibApplications);
+  const libApplicationsLoading = useSelector((state) => state.libApplications.loadingStatus.fetchLibApplications === 'pending');
+  
   // Local state for additional dashboard data
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
@@ -41,6 +46,9 @@ const Dashboard = () => {
         
         // Fetch applications from Redux
         dispatch(fetchApplications());
+        
+        // Fetch LIB applications from Redux
+        dispatch(fetchLibApplications());
         
         // Fetch additional dashboard data
         const [statsData, activitiesData, performanceData] = await Promise.all([
@@ -109,7 +117,7 @@ const Dashboard = () => {
         </DashboardSection>
         
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <StatCard
             title="Pending Conversations"
             value={
@@ -160,7 +168,28 @@ const Dashboard = () => {
             isLoading={applicationsLoading}
             description={
               <Link to="/applications" className="text-indigo-600 hover:underline">
-                View all applications
+                View all IPP applications
+              </Link>
+            }
+          />
+          
+          <StatCard
+            title="LIB Flex Applications"
+            value={
+              libApplicationsLoading
+                ? '...'
+                : libApplications.length
+            }
+            icon={
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            }
+            iconClass="bg-purple-100 text-purple-600"
+            isLoading={libApplicationsLoading}
+            description={
+              <Link to="/lib-applications" className="text-purple-600 hover:underline">
+                View all LIB applications
               </Link>
             }
           />
@@ -286,9 +315,9 @@ const Dashboard = () => {
           </div>
         </div>
         
-        {/* Main Content - Second Row */}
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
-          {/* Recent Applications */}
+        {/* Main Content - Second Row - Applications Sections */}
+        <div className="grid grid-cols-1 gap-6">
+          {/* Recent IPP Applications */}
           <DashboardSection 
             title="Recent IPP Applications"
             isLoading={applicationsLoading}
@@ -363,7 +392,87 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                No applications found
+                No IPP applications found
+              </div>
+            )}
+          </DashboardSection>
+          
+          {/* Recent LIB Flex Applications */}
+          <DashboardSection 
+            title="Recent LIB Flex Applications"
+            isLoading={libApplicationsLoading}
+            action={
+              <Link to="/lib-applications">
+                <Button variant="link" size="sm">View All LIB Flex Applications</Button>
+              </Link>
+            }
+          >
+            {libApplicationsLoading ? (
+              <LoadingSkeleton type="table" count={3} />
+            ) : libApplications.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="bg-muted/50 border-b">
+                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Customer</th>
+                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Policy Type</th>
+                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Submitted</th>
+                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {libApplications.slice(0, 3).map((application) => (
+                      <tr key={application.id} className="hover:bg-muted/30">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-sm font-medium">
+                              {application.customer.name.charAt(0)}
+                            </div>
+                            <div className="ml-3">
+                              <p className="text-sm font-medium">{application.customer.name}</p>
+                              <p className="text-xs text-muted-foreground">{application.customer.phone_number}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-sm">{application.form_data.policy_details.policy_type}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            application.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-800' :
+                            application.status === 'PENDING_DOCUMENTS' ? 'bg-yellow-100 text-yellow-800' :
+                            application.status === 'UNDER_REVIEW' ? 'bg-purple-100 text-purple-800' :
+                            application.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                            application.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {application.status.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-muted-foreground">
+                          {new Date(application.submission_date).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 px-4 text-sm">
+                          <Link
+                            to={`/lib-applications/${application.id}`}
+                            className="text-purple-600 hover:text-purple-900 mr-3"
+                          >
+                            View
+                          </Link>
+                          <Link
+                            to={`/conversations/${application.conversation_id}`}
+                            className="text-gray-600 hover:text-gray-900"
+                          >
+                            Chat
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No LIB Flex applications found
               </div>
             )}
           </DashboardSection>

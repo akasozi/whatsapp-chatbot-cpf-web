@@ -61,3 +61,5 @@ WhatsApp Chatbot with Human Agent Portal - React frontend for handling transferr
 3. Optimize performance
 4. Implement comprehensive error handling
 5. Add end-to-end tests
+
+The Actual API endpoint is swagger documentation is http://localhost:8000/docs read the conversation related documentation and schema

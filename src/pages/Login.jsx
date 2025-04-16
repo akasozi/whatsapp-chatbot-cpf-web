@@ -6,9 +6,9 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 
 const Login = () => {
-  // Pre-fill with dummy credentials for development
-  const [username, setUsername] = useState('agent');
-  const [password, setPassword] = useState('password');
+  // Pre-fill with credentials for development
+  const [username, setUsername] = useState('abukasozi@gmail.com');
+  const [password, setPassword] = useState('password123');
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { isLoading, error } = useSelector((state) => state.auth);
@@ -36,7 +36,7 @@ const Login = () => {
           <p className="mt-2 text-muted-foreground">Sign in to your account</p>
           <div className="mt-2 p-2 bg-primary/10 rounded text-xs text-muted-foreground">
             Development credentials pre-filled: <br />
-            Username: agent | Password: password
+            Username: abukasozi@gmail.com | Password: password123
           </div>
         </div>
         

@@ -32,24 +32,51 @@ const MessageList = ({
     });
   };
   
-  // Get CSS classes for message bubble based on source - WhatsApp-like styling
+  // Get CSS classes for message bubble based on direction - WhatsApp-like styling
   const getMessageClasses = (message) => {
-    if (message.source === 'USER') {
-      return 'bg-[#e2f7cb] text-black ml-auto'; // WhatsApp green for user messages
-    } else if (message.source === 'AGENT') {
-      return 'bg-white text-black'; // White for agent messages
+    // Support both source and direction/message_type to determine if it's INBOUND or OUTBOUND
+    // Also handle lowercase 'inbound'/'outbound' from the API 
+    const isInbound = message.source === 'USER' || 
+                      message.source === 'user' ||
+                      message.source === 'CUSTOMER' || 
+                      message.direction === 'INBOUND' || 
+                      message.direction === 'inbound' ||
+                      message.message_type === 'INBOUND' ||
+                      message.message_type === 'inbound';
+    
+    const isOutbound = message.source === 'AGENT' || 
+                       message.source === 'bot' ||
+                       message.direction === 'OUTBOUND' || 
+                       message.direction === 'outbound' ||
+                       message.message_type === 'OUTBOUND' ||
+                       message.message_type === 'outbound';
+    
+    if (isInbound) {
+      // INBOUND messages: Gray bubble with left-aligned styling (WhatsApp received message style)
+      return 'bg-white text-black rounded-lg border border-gray-100 shadow-sm'; 
+    } else if (isOutbound) {
+      // OUTBOUND messages: Green bubble with right-aligned styling (WhatsApp sent message style)
+      return 'bg-[#dcf8c6] text-black rounded-lg border border-[#c5e1a5] shadow-sm'; 
     } else if (message.source === 'BOT') {
-      return 'bg-[#f0f0f0] text-black'; // Light gray for bot messages
+      // Bot messages: Light purple with subtle styling
+      return 'bg-[#f3e5f5] text-black rounded-lg border border-[#e1bee7] shadow-sm'; 
     } else {
-      return 'bg-[#ffe6cc] text-black'; // Light orange for system messages
+      // System messages: Light orange with neutral styling
+      return 'bg-[#fff3e0] text-black rounded-lg border border-[#ffe0b2] shadow-sm mx-auto'; 
     }
   };
   
   // Get indicator icon/label based on message source
   const getSourceIndicator = (message) => {
-    if (message.source === 'USER') {
+    // Support both source and direction/message_type
+    const isCustomer = message.source === 'USER' || 
+                      message.source === 'CUSTOMER' || 
+                      message.direction === 'INBOUND' || 
+                      message.message_type === 'INBOUND';
+    
+    if (isCustomer) {
       return 'Customer';
-    } else if (message.source === 'AGENT') {
+    } else if (message.source === 'AGENT' || message.direction === 'OUTBOUND' || message.message_type === 'OUTBOUND') {
       return message.sender_name || 'Agent';
     } else if (message.source === 'BOT') {
       return 'Bot';
@@ -60,7 +87,12 @@ const MessageList = ({
   
   // Format agent info for display
   const getAgentInfo = (message) => {
-    if (message.source !== 'AGENT') return null;
+    // Support both source and direction/message_type
+    const isAgent = message.source === 'AGENT' || 
+                   message.direction === 'OUTBOUND' || 
+                   message.message_type === 'OUTBOUND';
+                   
+    if (!isAgent) return null;
     
     const agentName = message.sender_name || 'Agent';
     const responseTime = message.response_time_seconds 
@@ -111,13 +143,27 @@ const MessageList = ({
               </div>
             </div>
             
-            {/* Message bubble */}
-            <div className={`max-w-[70%] group ${message.source === 'USER' ? 'ml-auto' : 'mr-auto'}`}>
-              <div className={`rounded-lg p-3 shadow-sm relative ${getMessageClasses(message)}`}>
-                {/* Agent info for agent messages */}
-                {message.source === 'AGENT' && (
-                  <div className="mb-1 -mt-1 text-[10px] text-gray-500 font-medium">
-                    {message.sender_name || 'Agent'}
+            {/* Message bubble - WhatsApp-like positioning */}
+            <div className={`max-w-[70%] group ${
+              message.direction === 'INBOUND' || message.direction === 'inbound' || 
+              message.message_type === 'INBOUND' || message.message_type === 'inbound' || 
+              message.source === 'USER' || message.source === 'user' || 
+              message.source === 'CUSTOMER' ? 'mr-auto' : 'ml-auto'
+            }`}>
+              <div className={`rounded-lg p-3 relative ${getMessageClasses(message)}`}>
+                {/* Agent info for agent messages with username */}
+                {(message.source === 'AGENT' || message.source === 'agent' || 
+                  message.direction === 'OUTBOUND' || message.direction === 'outbound') && (
+                  <div className="mb-1 -mt-1 text-[10px] text-gray-500 font-medium flex items-center justify-between">
+                    <div>
+                      {message.sender_name || 'Agent'}
+                      {message.username && message.username !== message.sender_name && (
+                        <span className="ml-1 text-blue-500">@{message.username}</span>
+                      )}
+                      {!message.username && message.sender_id && message.sender_id !== 'system' && (
+                        <span className="ml-1 text-blue-500">ID: {message.sender_id}</span>
+                      )}
+                    </div>
                     {message.response_time_seconds && (
                       <span className="ml-2 text-green-600">
                         {Math.round(message.response_time_seconds / 60)}m response
@@ -149,14 +195,25 @@ const MessageList = ({
                   </div>
                 )}
                 
-                {/* Time and status */}
-                <div className="text-right mt-1">
-                  <span className="text-[10px] text-gray-500 mr-1">
-                    {formatMessageTime(message.created_at)}
+                {/* Time and status with direction indicator */}
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-[10px] text-gray-500">
+                    {(message.direction === 'INBOUND' || message.direction === 'inbound' || 
+                      message.message_type === 'INBOUND' || message.message_type === 'inbound' ||
+                      message.source === 'USER' || message.source === 'user' || 
+                      message.source === 'CUSTOMER') ? 
+                      <span className="text-[10px] text-blue-600 font-medium">INBOUND</span> : 
+                      <span className="text-[10px] text-green-600 font-medium">OUTBOUND</span>
+                    }
                   </span>
-                  {message.source === 'AGENT' && (
-                    <span className="text-[10px] text-gray-500">✓✓</span>
-                  )}
+                  <div className="flex items-center">
+                    <span className="text-[10px] text-gray-500 mr-1">
+                      {formatMessageTime(message.created_at)}
+                    </span>
+                    {(message.source === 'AGENT' || message.direction === 'OUTBOUND' || message.message_type === 'OUTBOUND') && (
+                      <span className="text-[10px] text-gray-500">✓✓</span>
+                    )}
+                  </div>
                 </div>
                 
                 {/* Action menu */}
@@ -178,12 +235,27 @@ const MessageList = ({
       }
       
       return (
-        <div key={message.id} className={`max-w-[70%] group ${message.source === 'USER' ? 'ml-auto' : 'mr-auto'}`}>
-          <div className={`rounded-lg p-3 shadow-sm relative ${getMessageClasses(message)}`}>
-            {/* Agent info for agent messages */}
-            {message.source === 'AGENT' && (
-              <div className="mb-1 -mt-1 text-[10px] text-gray-500 font-medium">
-                {message.sender_name || 'Agent'}
+        <div key={message.id} className={`max-w-[70%] group ${
+              message.direction === 'INBOUND' || message.direction === 'inbound' || 
+              message.message_type === 'INBOUND' || message.message_type === 'inbound' || 
+              message.source === 'USER' || message.source === 'user' || 
+              message.source === 'CUSTOMER' ? 'mr-auto' : 'ml-auto'
+            }`}>
+          <div className={`rounded-lg p-3 relative ${getMessageClasses(message)}`}>
+            {/* Agent info for agent messages with username */}
+            {(message.source === 'AGENT' || message.source === 'agent' || 
+              message.direction === 'OUTBOUND' || message.direction === 'outbound' ||
+              message.message_type === 'OUTBOUND' || message.message_type === 'outbound') && (
+              <div className="mb-1 -mt-1 text-[10px] text-gray-500 font-medium flex items-center justify-between">
+                <div>
+                  {message.sender_name || 'Agent'}
+                  {message.username && message.username !== message.sender_name && (
+                    <span className="ml-1 text-blue-500">@{message.username}</span>
+                  )}
+                  {!message.username && message.sender_id && message.sender_id !== 'system' && (
+                    <span className="ml-1 text-blue-500">ID: {message.sender_id}</span>
+                  )}
+                </div>
                 {message.response_time_seconds && (
                   <span className="ml-2 text-green-600">
                     {Math.round(message.response_time_seconds / 60)}m response
@@ -215,14 +287,25 @@ const MessageList = ({
               </div>
             )}
             
-            {/* Time and status */}
-            <div className="text-right mt-1">
-              <span className="text-[10px] text-gray-500 mr-1">
-                {formatMessageTime(message.created_at)}
+            {/* Time and status with direction indicator */}
+            <div className="flex justify-between items-center mt-1">
+              <span className="text-[10px] text-gray-500">
+                {(message.direction === 'INBOUND' || message.direction === 'inbound' || 
+                  message.message_type === 'INBOUND' || message.message_type === 'inbound' ||
+                  message.source === 'USER' || message.source === 'user' || 
+                  message.source === 'CUSTOMER') ? 
+                  <span className="text-[10px] text-blue-600 font-medium">INBOUND</span> : 
+                  <span className="text-[10px] text-green-600 font-medium">OUTBOUND</span>
+                }
               </span>
-              {message.source === 'AGENT' && (
-                <span className="text-[10px] text-gray-500">✓✓</span>
-              )}
+              <div className="flex items-center">
+                <span className="text-[10px] text-gray-500 mr-1">
+                  {formatMessageTime(message.created_at)}
+                </span>
+                {(message.source === 'AGENT' || message.direction === 'OUTBOUND' || message.message_type === 'OUTBOUND') && (
+                  <span className="text-[10px] text-gray-500">✓✓</span>
+                )}
+              </div>
             </div>
             
             {/* Action menu */}
@@ -255,7 +338,13 @@ const MessageList = ({
           <p>No messages yet</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto space-y-3">
+        <div 
+          className="flex-1 overflow-y-auto space-y-3 p-4"
+          style={{
+            backgroundImage: `url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAZCAYAAADE6YVjAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAhOAAAITgBRZYxYAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAUeSURBVEiJtZV5bBVVFIe/O2/evn2v9BVaaOoChtJiK0QK1YgGJUCUEIMYMcGkQSyVFo1iApQYFyRB5Q8TEoIhIWCIu1EjYrRSCBpctqJdKFRamq4vb+vbZu78UUDAUjT+kpObycyc892Tc+fOFT7ljV1ze5r/S/5LP/xk/MlAYNmAJQAceOFgSOJv8vefyP+XAR/UWwZvsnVq3skX4VSSdmIuzfLHgY7h+r9B7vCwfHFKXdIzxLcUfXO0pM9QXDNAkFj6N/kXpM5AoT5gc7TO0xL0p6+Xg0GI2yMn7cP+gqNPHx5zsvaF2qvZ8cnZp1/f9Ubr87rkkMQFjXI7BoAE5xKgcsBIS46hdNQ5oQQZzQTz25DuSXfYgn4p0zXNfV+YVyiCgbAoLCgc0tLQcseunw6mNdTU56RmZy5fMH/+6xdkjy0cdF/t6fLiG7vd+uDKFOXTk89EVieYyryLtQOVcLRYlbdjmfbI2Y4rdSBkaGmp7WN+7c2GVUuXrCpev3XL0vZzDd+eqT2dc+HwT7JHYqGjorLmU2ukcbTw1/oPTJvdDYa3qzuQmD0x8/GDO/aMW1dXUeZ2u8e7XK71wOzW5ubHTpafmLNv3978fXv3PQocCgQDIuhvOzfGsxkZmrYm3Zo2vkfYTY9lEWWtTL6mjlq0eYuMRsKxnvY22lra+OPs2ZTzZbUJzc1NE0rLDsZisRiiPV0FwAlgFCBEQkbL2rbG+uB9DzxJ+a4v+Xp7ibzYEEgCbUjC9RxYmZE/QQtHOvF1XmLfju28uX4dNTXVpnA4zIUL9UERERJgIvANYAJCxIWhgn2NKS5X8n2XXzxHKBTFnz6CsaN8uKyCpnBQ9tkj6pnCfJLtPv768zT7d+1kybJXOFVdxc4d29sHDRrUSESMJUuW6EOGDFkM7AasQsSl1WJ42nz9BXuP7CUUCtDub+XBkY8Ru+c5eo0ay9kjR8gY8DzOni6Mbt94I9nw+eefMXFaPosWL+L9De/mdnV1IVNTU6GsrMyZl5f3uKZpLwGpAkBkZrgx0mJgU+CPC/x+qZFhu3eT4/MxNPQQocU1OKw++g7UmDMnHyVAJOpn88Z3sLqSWLlqNalpabjd7rM2mw0RCASYMGFCJvASMEsphRARSqkNQiQrH1i6WGJxGeMUJl8oDvHQ1QquvncnSe3HSevrI9FTw/r1bzFz1nQy+2XS1NTA6qXP0K+fn3fee5+kpCQAYlaLFUQYMGDAxPLy8oNKqTalVAioUEq9I7MzeiUMBD/HFjzKw0MyOc8IzrWcpjkjFfvZP0mUZ5gz7Q7aW9pYvX4dw0aM4LtvS1i2+FkefnQuJSUl+P3+XjabDWEYFn9nZ+f53NzcqWPHjm0oKioyllw9rCZnuKHlJMKwJOKtbyYaKifcXkM8JUTSvfm4Asd56a1P6HGrmKGRkpLC1OrR7C/dS+mpk9lVVVW7DMNACCEcDocIOVxOrrszrg9C97vBm14iPGksrOx1Ysf9mA4PvSQnabEm+g4aTP6UyXR0dKbXnz8fvHrlCkh3d7dISUkRAEIIafWEwqG6xtbQhWj8BLrHhSYsKJlEzGolHm4lKcHEzEwkGApRV1dHPB4HqJVCnDaUQqSmpiLbIopQOMKf59pjp1t6TKMnpoT88Y8Rc29Ds5jYOk6gxWuxx9vRrRpNTU0RwzCOXn1vAVQopUDTNO2mm5kCeaHF39MQiPTENE0QD6mYMrxWi8U93PCoCpFI5ACwTSnV+y/VtQtZuef+jAAAAABJRU5ErkJggg==")`,
+            backgroundColor: '#e9e4de'
+          }}
+        >
           {renderMessages()}
           <div ref={messagesEndRef} />
         </div>

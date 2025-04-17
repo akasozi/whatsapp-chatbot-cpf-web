@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
@@ -12,11 +12,19 @@ import {
   fetchIssueDetails,
   selectIssue
 } from '../redux/slices/issuesSlice';
+import { 
+  fetchTicketsByConversation,
+  fetchTicketByNumber,
+  updateTicketFromConversation,
+  selectTicket
+} from '../redux/slices/ticketsSlice';
 import DashboardLayout from '../layouts/DashboardLayout';
 import MessageList from '../components/conversations/MessageList';
 import MessageInput from '../components/conversations/MessageInput';
 import ConversationDetailHeader from '../components/conversations/ConversationDetailHeader';
-import IssuePanel from '../components/issues/IssuePanel';
+import TicketPanel from '../components/tickets/TicketPanel';
+import Modal from '../components/ui/modal';
+import { Button } from '../components/ui/button';
 
 const ConversationView = () => {
   const { id } = useParams();
@@ -42,6 +50,14 @@ const ConversationView = () => {
     error: issuesError
   } = useSelector((state) => state.issues);
   
+  // Selectors for tickets
+  const {
+    byConversation: ticketsByConversation,
+    selectedTicketId,
+    loadingStatus: ticketsLoadingStatus, 
+    error: ticketsError
+  } = useSelector((state) => state.tickets);
+  
   // Current user (for assignment checks)
   const { user } = useSelector((state) => state.auth);
   
@@ -54,6 +70,13 @@ const ConversationView = () => {
   // Get issues for this conversation
   const issueIds = id ? (issuesByConversation[id] || []) : [];
   const issues = issueIds.map(issueId => issuesById[issueId]).filter(Boolean);
+  
+  // Get all tickets from the store
+  const { byId: ticketsById } = useSelector((state) => state.tickets);
+  
+  // Get tickets for this conversation
+  const ticketIds = id ? (ticketsByConversation[id] || []) : [];
+  const tickets = ticketIds.map(ticketId => ticketsById[ticketId]).filter(Boolean);
   
   // Get IPP applications for this customer's phone number
   const applications = useSelector((state) => {
@@ -76,9 +99,13 @@ const ConversationView = () => {
   // Get the selected issue
   const selectedIssue = selectedIssueId ? issuesById[selectedIssueId] : null;
   
+  // UI states
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+  
   // Loading states
   const isConversationLoading = conversationsLoadingStatus.fetchConversationDetails === 'pending';
   const areIssuesLoading = issuesLoadingStatus.fetchIssues === 'pending';
+  const areTicketsLoading = ticketsLoadingStatus.fetchTicketsByConversation === 'pending';
   const isMessageSending = conversationsLoadingStatus.sendMessage === 'pending';
   
   // Fetch conversation data when ID changes
@@ -91,6 +118,9 @@ const ConversationView = () => {
       // Fetch issues for this conversation
       dispatch(fetchIssues(id));
       
+      // Fetch tickets for this conversation
+      dispatch(fetchTicketsByConversation(id));
+      
       // Fetch applications (to find any linked to this customer)
       dispatch(fetchApplications());
       
@@ -102,6 +132,7 @@ const ConversationView = () => {
     return () => {
       dispatch(selectConversation(null));
       dispatch(selectIssue(null));
+      dispatch(selectTicket(null));
     };
   }, [dispatch, id]);
   
@@ -111,9 +142,64 @@ const ConversationView = () => {
       dispatch(fetchIssueDetails(selectedIssueId));
     }
   }, [dispatch, selectedIssueId]);
+  
+  // Sync ticket data from conversation response to tickets slice
+  useEffect(() => {
+    if (conversation && conversation.ticket) {
+      dispatch(updateTicketFromConversation({
+        conversationId: id,
+        ticket: conversation.ticket
+      }));
+    }
+  }, [dispatch, id, conversation?.ticket]);
+  
+  // Helper functions for ticket display
+  const getTicketStatusBadge = (status) => {
+    // Convert to lowercase for case-insensitive comparison
+    const statusLower = status?.toLowerCase();
+    
+    switch (statusLower) {
+      case 'new':
+        return 'bg-blue-100 text-blue-800';
+      case 'assigned':
+        return 'bg-indigo-100 text-indigo-800';
+      case 'in_progress':
+        return 'bg-purple-100 text-purple-800';
+      case 'waiting_on_customer':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'waiting_on_third_party':
+        return 'bg-orange-100 text-orange-800';
+      case 'resolved':
+        return 'bg-green-100 text-green-800';
+      case 'closed':
+        return 'bg-gray-100 text-gray-800';
+      case 'reopened':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+  
+  const getTicketPriorityBadge = (priority) => {
+    // Convert to lowercase for case-insensitive comparison
+    const priorityLower = priority?.toLowerCase();
+    
+    switch (priorityLower) {
+      case 'high':
+        return 'bg-red-100 text-red-800';
+      case 'urgent':
+        return 'bg-red-200 text-red-900';
+      case 'medium':
+        return 'bg-orange-100 text-orange-800';
+      case 'low':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-blue-100 text-blue-800';
+    }
+  };
 
   // Handle errors
-  const error = conversationsError || issuesError;
+  const error = conversationsError || issuesError || ticketsError;
   if (error) {
     return (
       <DashboardLayout>
@@ -124,8 +210,26 @@ const ConversationView = () => {
     );
   }
   
-  // Handle loading state
-  if (isConversationLoading && !conversation) {
+  // This code is replaced by the updated loading logic below
+  
+  // Handle missing conversation - adding a delay to ensure loading is complete
+  const [shouldShowError, setShouldShowError] = useState(false);
+  
+  useEffect(() => {
+    // If not loading and no conversation is found, set a delay before showing error
+    if (!isConversationLoading && !conversation) {
+      const timer = setTimeout(() => {
+        setShouldShowError(true);
+      }, 1000); // 1 second delay
+      
+      return () => clearTimeout(timer);
+    } else if (conversation) {
+      setShouldShowError(false);
+    }
+  }, [isConversationLoading, conversation]);
+  
+  // If either loading or no conversation data, show appropriate UI
+  if (isConversationLoading || (!conversation && !shouldShowError)) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-full">
@@ -135,8 +239,7 @@ const ConversationView = () => {
     );
   }
   
-  // Handle missing conversation
-  if (!isConversationLoading && !conversation) {
+  if (!conversation && shouldShowError) {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
@@ -149,6 +252,17 @@ const ConversationView = () => {
     );
   }
   
+  // Safety check - only render main UI if conversation exists
+  if (!conversation) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+  
   return (
     <DashboardLayout>
       <div className="h-full flex flex-col">
@@ -156,6 +270,7 @@ const ConversationView = () => {
         <ConversationDetailHeader 
           conversation={conversation}
           currentUser={user}
+          onOpenTicketModal={() => setIsTicketModalOpen(true)}
         />
         
         {/* Main content */}
@@ -184,10 +299,10 @@ const ConversationView = () => {
             </div>
           </div>
           
-          {/* Right sidebar - Issues panel */}
+          {/* Right sidebar - Customer Info */}
           <div className="w-96 flex-shrink-0 border-l overflow-y-auto bg-card">
             {/* Customer info section */}
-            <div className="border-b p-4">
+            <div className="p-4">
               <div className="flex items-center mb-3">
                 <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-lg">
                   {conversation.customer_name.charAt(0)}
@@ -266,18 +381,86 @@ const ConversationView = () => {
                   )}
                 </div>
               )}
+              
+              {/* Ticket summary - preview in sidebar */}
+              {conversation.ticket && (
+                <div className="mt-4 bg-blue-50 p-3 rounded-md border border-blue-100">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-medium text-sm">Support Ticket</h4>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="text-xs py-0 px-2 h-6"
+                      onClick={() => setIsTicketModalOpen(true)}
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                  <div className="text-xs space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Number:</span>
+                      <span className="font-medium">{conversation.ticket.ticket_number || `T-${conversation.ticket.id}`}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Status:</span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-xs ${getTicketStatusBadge(conversation.ticket.status)}`}>
+                        {conversation.ticket.status}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Priority:</span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-xs ${getTicketPriorityBadge(conversation.ticket.priority)}`}>
+                        {conversation.ticket.priority}
+                      </span>
+                    </div>
+                    {conversation.ticket.title && (
+                      <div className="pt-1 mt-1 border-t border-blue-100">
+                        <p className="line-clamp-2 text-gray-700">{conversation.ticket.title}</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Button at the bottom of ticket summary */}
+                  <div className="mt-3 flex justify-center">
+                    <Button 
+                      size="sm"
+                      variant="outline"
+                      className="w-full text-xs"
+                      onClick={() => setIsTicketModalOpen(true)}
+                    >
+                      <span className="flex items-center justify-center">
+                        <svg className="w-3.5 h-3.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        Manage Ticket Details
+                      </span>
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-            
-            {/* Issues panel */}
-            <IssuePanel 
-              issues={issues}
-              conversationId={id}
-              selectedIssueId={selectedIssueId}
-              isLoading={areIssuesLoading}
-            />
           </div>
         </div>
       </div>
+      
+      {/* Ticket Modal */}
+      <Modal
+        isOpen={isTicketModalOpen}
+        onClose={() => setIsTicketModalOpen(false)}
+        title={`Support Tickets - ${conversation?.customer_name || 'Conversation'}`}
+        size="lg"
+      >
+        <div className="h-[70vh] border rounded-md overflow-hidden">
+          <TicketPanel 
+            tickets={tickets}
+            conversationId={id}
+            selectedTicketId={selectedTicketId}
+            isLoading={areTicketsLoading}
+            conversationTicket={conversation?.ticket}
+          />
+        </div>
+      </Modal>
     </DashboardLayout>
   );
 };

@@ -1,10 +1,14 @@
 import { io } from 'socket.io-client';
-import { addMessage } from '../redux/slices/conversationsSlice';
+import { addMessage, fetchConversations } from '../redux/slices/conversationsSlice';
 import store from '../redux/store';
+
+// Flag to enable/disable WebSocket functionality
+const USE_WEBSOCKETS = true; // Set to false to disable WebSockets
 
 class SocketService {
   constructor() {
     this.socket = null;
+    this.ws = null; // Native WebSocket connection
     this.isConnected = false;
   }
 
@@ -12,6 +16,118 @@ class SocketService {
   init() {
     // Skip socket connection in development mode since we're using mock data
     console.log('Socket initialization skipped in development/mock mode');
+    
+    // Only continue with WebSocket if enabled - this won't break existing code
+    if (!USE_WEBSOCKETS) {
+      return;
+    }
+    
+    // Attempt to initialize WebSocket
+    try {
+      // Get required auth token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('No token available for WebSocket authentication');
+        return;
+      }
+      
+      // Get agent ID from user info
+      let agentId;
+      try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        agentId = user?.id;
+        if (!agentId) {
+          console.warn('No agent ID found for WebSocket connection');
+          return;
+        }
+      } catch (e) {
+        console.error('Failed to parse user info:', e);
+        return;
+      }
+      
+      // Get base URL from environment
+      const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      
+      // Check if we need to use the provided ngrok URL for WebSockets
+      // This is for testing with localhost/ngrok
+      const WS_URL = 'wss://fd79-105-161-152-117.ngrok-free.app';
+      
+      // Determine which URL to use - use ngrok for development
+      const baseWsUrl = WS_URL || BASE_URL.replace('http://', 'ws://').replace('https://', 'wss://');
+      
+      // Construct WebSocket URL
+      const wsUrl = `${baseWsUrl}/api/v1/ws/agent/${agentId}/conversations?token=${encodeURIComponent(token)}`;
+      
+      console.log('Connecting to WebSocket:', wsUrl);
+      
+      // Create WebSocket connection
+      this.ws = new WebSocket(wsUrl);
+      
+      // Basic event handlers
+      this.ws.onopen = () => {
+        console.log('WebSocket connected successfully');
+        this.isConnected = true;
+        
+        // Set up ping to keep connection alive
+        // Store the interval ID so we can clear it later
+        this.pingInterval = setInterval(() => {
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            console.log('Sending ping to keep connection alive');
+            this.ws.send(JSON.stringify({event: 'ping'}));
+          }
+        }, 30000);
+      };
+      
+      this.ws.onclose = (event) => {
+        console.log(`WebSocket disconnected with code ${event.code}`, event.reason);
+        this.isConnected = false;
+        
+        // Clear ping interval
+        if (this.pingInterval) {
+          clearInterval(this.pingInterval);
+          this.pingInterval = null;
+        }
+        
+        // Don't reconnect if closed cleanly or if feature is disabled
+        if (event.code === 1000 || !USE_WEBSOCKETS) {
+          console.log('WebSocket closed cleanly, not reconnecting');
+          return;
+        }
+        
+        // Reconnect after delay
+        console.log('Will attempt to reconnect in 5 seconds...');
+        this.reconnectTimeout = setTimeout(() => {
+          console.log('Attempting to reconnect WebSocket...');
+          this.init();
+        }, 5000);
+      };
+      
+      this.ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+      
+      this.ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('WebSocket message received:', data.event);
+          
+          if (data.event === 'new_message' && data.data) {
+            console.log('New message:', data.data);
+            
+            // Dispatch to Redux
+            store.dispatch(addMessage(data.data));
+            
+            // Refresh conversations list to update last message, etc.
+            store.dispatch(fetchConversations());
+          }
+        } catch (error) {
+          console.error('Error handling WebSocket message:', error);
+        }
+      };
+    } catch (error) {
+      console.error('Failed to initialize WebSocket:', error);
+    }
+    
     return;
     
     /* Disable socket connection until backend is ready
@@ -73,9 +189,37 @@ class SocketService {
     */
   }
 
-  // Disconnect the socket - no-op in mock mode
+  // Disconnect the socket - now handles both socket.io and WebSocket
   disconnect() {
-    console.log('Socket disconnect called (no-op in mock mode)');
+    console.log('Socket disconnect called');
+    
+    // Clean up WebSocket if it exists
+    if (this.ws) {
+      console.log('Closing WebSocket connection');
+      
+      // Clear intervals and timeouts first
+      if (this.pingInterval) {
+        clearInterval(this.pingInterval);
+        this.pingInterval = null;
+      }
+      
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = null;
+      }
+      
+      // Close the connection
+      try {
+        this.ws.close();
+      } catch (e) {
+        console.error('Error closing WebSocket:', e);
+      }
+      
+      this.ws = null;
+      this.isConnected = false;
+    }
+    
+    // Keep original socket.io cleanup (commented out for now)
     // No-op in mock mode
     /*
     if (this.socket) {
@@ -86,14 +230,15 @@ class SocketService {
     */
   }
 
-  // Reconnect with a new token - no-op in mock mode
+  // Reconnect with a new token - now handles both socket.io and WebSocket
   reconnect() {
-    console.log('Socket reconnect called (no-op in mock mode)');
-    // No-op in mock mode
-    /*
+    console.log('Socket reconnect called');
+    
+    // Disconnect existing connections
     this.disconnect();
+    
+    // Reconnect
     this.init();
-    */
   }
 
   // Join a specific conversation room - no-op in mock mode

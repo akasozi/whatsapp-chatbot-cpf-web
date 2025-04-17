@@ -119,7 +119,7 @@ const ConversationList = ({
                   <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Message</th>
                   <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
                   <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Assigned</th>
-                  <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Issues</th>
+                  <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Ticket No.</th>
                   <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Time</th>
                   <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
                 </tr>
@@ -164,9 +164,9 @@ const ConversationList = ({
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      {conversation.openIssueCount > 0 ? (
-                        <span className="text-xs bg-red-100 text-red-800 rounded-full px-2 py-1">
-                          {conversation.openIssueCount} open
+                      {conversation.ticket && (conversation.ticket.ticket_number || conversation.ticket.id) ? (
+                        <span className="text-xs bg-blue-100 text-blue-800 rounded-full px-2 py-1">
+                          {conversation.ticket.ticket_number || `T-${conversation.ticket.id}`}
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">None</span>

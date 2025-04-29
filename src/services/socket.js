@@ -50,8 +50,9 @@ class SocketService {
       
       // Check if we need to use the provided ngrok URL for WebSockets
       // This is for testing with localhost/ngrok
-      const WS_URL = 'wss://fd79-105-161-152-117.ngrok-free.app';
-      
+      // const WS_URL = 'wss://fd79-105-161-152-117.ngrok-free.app';
+
+      const WS_URL = 'wss://whatsapp-api.clouddlow.co.ke';
       // Determine which URL to use - use ngrok for development
       const baseWsUrl = WS_URL || BASE_URL.replace('http://', 'ws://').replace('https://', 'wss://');
       

@@ -152,7 +152,7 @@ const Dashboard = () => {
             description="In progress"
           />
           
-          <StatCard
+          {/* <StatCard
             title="IPP Applications"
             value={
               applicationsLoading
@@ -171,9 +171,9 @@ const Dashboard = () => {
                 View all IPP applications
               </Link>
             }
-          />
+          /> */}
           
-          <StatCard
+          {/* <StatCard
             title="LIB Flex Applications"
             value={
               libApplicationsLoading
@@ -192,7 +192,7 @@ const Dashboard = () => {
                 View all LIB applications
               </Link>
             }
-          />
+          /> */}
           
           <StatCard
             title="Avg. Response Time"

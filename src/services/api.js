@@ -1,8 +1,10 @@
 import axios from 'axios';
 
 // Create an instance of axios with default config
+// https://77a9-35-184-117-49.ngrok-free.app
+// baseURL: import.meta.env.VITE_API_URL || 'http://35.184.117.49:8000/api/v1',
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || 'https://whatsapp-api.cloudflow.co.ke/api/v1',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

@@ -34,10 +34,10 @@ const Login = () => {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-primary">Agent Portal</h1>
           <p className="mt-2 text-muted-foreground">Sign in to your account</p>
-          <div className="mt-2 p-2 bg-primary/10 rounded text-xs text-muted-foreground">
+          {/* <div className="mt-2 p-2 bg-primary/10 rounded text-xs text-muted-foreground">
             Development credentials pre-filled: <br />
             Username: abukasozi@gmail.com | Password: password123
-          </div>
+          </div> */}
         </div>
         
         {error && (

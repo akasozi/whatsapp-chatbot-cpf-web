@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
-import { useDispatch } from 'react-redux';
+import React, { useEffect, useRef } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { attachMessageToIssue } from '../../redux/slices/issuesSlice';
+import { selectConversationUnreadCount, markMessagesAsRead, selectUnreadMessageIds } from '../../redux/slices/conversationsSlice';
 import AttachmentPreview from '../AttachmentPreview';
 
 /**
@@ -10,19 +11,44 @@ import AttachmentPreview from '../AttachmentPreview';
  * @param {Array} props.messages - List of messages to display
  * @param {String} props.currentIssueId - Currently selected issue ID (for attaching messages)
  * @param {Boolean} props.isLoading - Loading state
+ * @param {String} props.conversationId - The ID of the current conversation
  */
 const MessageList = ({ 
   messages = [], 
   currentIssueId = null,
-  isLoading = false
+  isLoading = false,
+  conversationId = null
 }) => {
   const messagesEndRef = useRef(null);
+  const unreadMessagesRef = useRef(null);
   const dispatch = useDispatch();
+  const unreadCount = useSelector(state => selectConversationUnreadCount(state, conversationId || ''));
+  
+  // Get unread message IDs from Redux store
+  const unreadMessageIds = useSelector(state => selectUnreadMessageIds(state, conversationId || ''));
   
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
+  
+  // We no longer need this effect as we're getting unread message IDs directly from Redux
+  
+  // Scroll to the first unread message if any, otherwise to the bottom
+  useEffect(() => {
+    if (unreadMessageIds.length > 0 && unreadMessagesRef.current) {
+      unreadMessagesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // Mark these messages as read after a slight delay (to allow user to see them)
+      const timer = setTimeout(() => {
+        if (conversationId) {
+          dispatch(markMessagesAsRead({ conversationId }));
+        }
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [conversationId, unreadMessageIds, dispatch]);
   
   // Format timestamp for display
   const formatMessageTime = (timestamp) => {
@@ -34,6 +60,9 @@ const MessageList = ({
   
   // Get CSS classes for message bubble based on direction - WhatsApp-like styling
   const getMessageClasses = (message) => {
+    // Check if message is unread
+    const isUnread = unreadMessageIds.includes(message.id);
+    
     // Support both source and direction/message_type to determine if it's INBOUND or OUTBOUND
     // Also handle lowercase 'inbound'/'outbound' from the API 
     const isInbound = message.source === 'USER' || 
@@ -51,19 +80,29 @@ const MessageList = ({
                        message.message_type === 'OUTBOUND' ||
                        message.message_type === 'outbound';
     
+    // Base classes depending on message direction
+    let baseClasses = '';
+    
     if (isInbound) {
       // INBOUND messages: Gray bubble with left-aligned styling (WhatsApp received message style)
-      return 'bg-white text-black rounded-lg border border-gray-100 shadow-sm'; 
+      baseClasses = 'bg-white text-black rounded-lg border border-gray-100 shadow-sm'; 
     } else if (isOutbound) {
       // OUTBOUND messages: Green bubble with right-aligned styling (WhatsApp sent message style)
-      return 'bg-[#dcf8c6] text-black rounded-lg border border-[#c5e1a5] shadow-sm'; 
+      baseClasses = 'bg-[#dcf8c6] text-black rounded-lg border border-[#c5e1a5] shadow-sm'; 
     } else if (message.source === 'BOT') {
       // Bot messages: Light purple with subtle styling
-      return 'bg-[#f3e5f5] text-black rounded-lg border border-[#e1bee7] shadow-sm'; 
+      baseClasses = 'bg-[#f3e5f5] text-black rounded-lg border border-[#e1bee7] shadow-sm'; 
     } else {
       // System messages: Light orange with neutral styling
-      return 'bg-[#fff3e0] text-black rounded-lg border border-[#ffe0b2] shadow-sm mx-auto'; 
+      baseClasses = 'bg-[#fff3e0] text-black rounded-lg border border-[#ffe0b2] shadow-sm mx-auto'; 
     }
+    
+    // Add unread indicator style if the message is unread
+    if (isUnread && isInbound) {
+      return `${baseClasses} border-l-4 border-l-blue-500 shadow-md bg-blue-50 font-medium`;
+    }
+    
+    return baseClasses;
   };
   
   // Get indicator icon/label based on message source
@@ -120,9 +159,14 @@ const MessageList = ({
   // Group adjacent messages by date - prepare outside the render conditionals
   const renderMessages = () => {
     let currentDate = null;
+    // Find the first unread message to reference later
+    const firstUnreadIndex = messages.findIndex(msg => unreadMessageIds.includes(msg.id));
+    
     return messages.map((message, index) => {
       const messageDate = new Date(message.created_at).toDateString();
       const showDateDivider = currentDate !== messageDate;
+      // Check if this is the first unread message
+      const isFirstUnread = index === firstUnreadIndex && unreadMessageIds.includes(message.id);
       
       if (showDateDivider) {
         currentDate = messageDate;
@@ -143,13 +187,23 @@ const MessageList = ({
               </div>
             </div>
             
+            {/* Unread messages indicator if this is the first unread */}
+            {isFirstUnread && (
+              <div className="flex justify-center my-4" ref={unreadMessagesRef}>
+                <div className="bg-blue-100 rounded-full px-3 py-1 text-xs text-blue-700 font-medium shadow-sm animate-pulse">
+                  New messages
+                </div>
+              </div>
+            )}
+            
             {/* Message bubble - WhatsApp-like positioning */}
             <div className={`max-w-[70%] group ${
               message.direction === 'INBOUND' || message.direction === 'inbound' || 
               message.message_type === 'INBOUND' || message.message_type === 'inbound' || 
               message.source === 'USER' || message.source === 'user' || 
               message.source === 'CUSTOMER' ? 'mr-auto' : 'ml-auto'
-            }`}>
+            }`}
+            ref={isFirstUnread ? unreadMessagesRef : null}>
               <div className={`rounded-lg p-3 relative ${getMessageClasses(message)}`}>
                 {/* Agent info for agent messages with username */}
                 {(message.source === 'AGENT' || message.source === 'agent' || 
@@ -235,13 +289,22 @@ const MessageList = ({
       }
       
       return (
-        <div key={message.id} className={`max-w-[70%] group ${
+        <React.Fragment key={message.id}>
+          {/* Show unread messages divider for first unread message */}
+          {isFirstUnread && (
+            <div className="flex justify-center my-4" ref={unreadMessagesRef}>
+              <div className="bg-blue-100 rounded-full px-3 py-1 text-xs text-blue-700 font-medium shadow-sm">
+                New messages
+              </div>
+            </div>
+          )}
+          <div className={`max-w-[70%] group ${
               message.direction === 'INBOUND' || message.direction === 'inbound' || 
               message.message_type === 'INBOUND' || message.message_type === 'inbound' || 
               message.source === 'USER' || message.source === 'user' || 
               message.source === 'CUSTOMER' ? 'mr-auto' : 'ml-auto'
             }`}>
-          <div className={`rounded-lg p-3 relative ${getMessageClasses(message)}`}>
+            <div className={`rounded-lg p-3 relative ${getMessageClasses(message)}`}>
             {/* Agent info for agent messages with username */}
             {(message.source === 'AGENT' || message.source === 'agent' || 
               message.direction === 'OUTBOUND' || message.direction === 'outbound' ||
@@ -322,6 +385,7 @@ const MessageList = ({
             )}
           </div>
         </div>
+        </React.Fragment>
       );
     });
   };

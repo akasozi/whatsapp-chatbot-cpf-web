@@ -5,6 +5,7 @@ import issuesReducer from './slices/issuesSlice';
 import applicationsReducer from './slices/applicationsSlice';
 import libApplicationsReducer from './slices/libApplicationsSlice';
 import ticketsReducer from './slices/ticketsSlice';
+import notificationsReducer from './slices/notificationsSlice';
 
 const store = configureStore({
   reducer: {
@@ -13,7 +14,8 @@ const store = configureStore({
     issues: issuesReducer,
     applications: applicationsReducer,
     libApplications: libApplicationsReducer,
-    tickets: ticketsReducer
+    tickets: ticketsReducer,
+    notifications: notificationsReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

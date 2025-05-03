@@ -67,7 +67,11 @@ const ConversationItem = ({
   
   return (
     <div 
-      className={`border rounded-lg mb-2 overflow-hidden ${isSelected ? 'ring-2 ring-primary' : ''} transition-all`}
+      className={`border rounded-lg mb-2 overflow-hidden ${
+        isSelected ? 'ring-2 ring-primary' : ''
+      } ${
+        conversation.has_unseen_messages ? 'bg-blue-50 border-blue-200 font-medium' : ''
+      } transition-all`}
       onMouseEnter={() => setShowPreview(true)}
       onMouseLeave={() => setShowPreview(false)}
     >
@@ -79,9 +83,11 @@ const ConversationItem = ({
             </div>
             <div className="ml-3">
               <div className="flex items-center">
-                <h3 className="text-sm font-medium">{conversation.customer_name}</h3>
+                <h3 className={`text-sm ${conversation.has_unseen_messages ? 'font-bold text-blue-700' : 'font-medium'}`}>
+                  {conversation.customer_name}
+                </h3>
                 {conversation.unread_count > 0 && (
-                  <span className="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                  <span className="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500 text-white">
                     {conversation.unread_count}
                   </span>
                 )}
@@ -103,15 +109,20 @@ const ConversationItem = ({
         </div>
         
         <div className="mb-2">
-          <p className="text-sm line-clamp-1">
+          <p className={`text-sm line-clamp-1 ${
+              conversation.has_unseen_messages ? 'font-medium text-gray-900' : ''
+            }`}>
             {conversation.lastMessage?.content || "No messages yet"}
           </p>
-          <div className="flex justify-between text-xs text-muted-foreground mt-1">
-            <span>
+          <div className="flex justify-between text-xs mt-1">
+            <span className={conversation.has_unseen_messages ? 'text-blue-700 font-medium' : 'text-muted-foreground'}>
               {conversation.lastMessage?.source === 'USER' ? 'From customer' : 
                 conversation.lastMessage?.source === 'AGENT' ? 'From agent' : 'From system'}
+              {conversation.lastMessage?.is_read === false && ' • Unread'}
             </span>
-            <span>{formatDate(conversation.last_activity || conversation.updated_at)}</span>
+            <span className={conversation.has_unseen_messages ? 'text-blue-700 font-medium' : 'text-muted-foreground'}>
+              {formatDate(conversation.last_activity || conversation.updated_at)}
+            </span>
           </div>
         </div>
         

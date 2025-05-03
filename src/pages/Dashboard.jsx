@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { fetchConversations } from '../redux/slices/conversationsSlice';
+import { fetchConversations, fetchUnreadStats, selectTotalUnreadCount } from '../redux/slices/conversationsSlice';
 import { fetchApplications, selectAllApplications } from '../redux/slices/applicationsSlice';
 import { fetchLibApplications, selectAllLibApplications } from '../redux/slices/libApplicationsSlice';
 import DashboardLayout from '../layouts/DashboardLayout';
@@ -9,16 +9,19 @@ import StatCard from '../components/dashboard/StatCard';
 import DashboardSection from '../components/dashboard/DashboardSection';
 import LoadingSkeleton from '../components/dashboard/LoadingSkeleton';
 import ActivityFeed from '../components/dashboard/ActivityFeed';
+import DailyUserStats from '../components/dashboard/DailyUserStats';
 import AgentPerformanceSummary from '../components/dashboard/AgentPerformanceSummary';
+import MessageStatistics from '../components/dashboard/MessageStatistics';
 import DashboardService from '../services/dashboard';
 import { Button } from '../components/ui/button';
 
 const Dashboard = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  const { byId, allIds, loadingStatus } = useSelector((state) => state.conversations);
+  const { byId, allIds, conversationsWithUnread, loadingStatus } = useSelector((state) => state.conversations);
   const conversations = allIds.map(id => byId[id]);
   const conversationsLoading = loadingStatus.fetchConversations === 'pending';
+  const totalUnreadCount = useSelector(selectTotalUnreadCount);
   
   // Get application data
   const applications = useSelector(selectAllApplications);
@@ -32,9 +35,40 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
   const [performance, setPerformance] = useState(null);
+  const [uniqueUsersStats, setUniqueUsersStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingUserStats, setIsLoadingUserStats] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('currentMonth');
+  const [includeDailyStats, setIncludeDailyStats] = useState(true);
+  
+  // Date filter state for unique users statistics
+  const getCurrentMonthDates = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const firstDayStr = firstDay.toISOString().split('T')[0];
+    const todayStr = now.toISOString().split('T')[0];
+    return { startDate: firstDayStr, endDate: todayStr };
+  };
+  
+  const [dateFilter, setDateFilter] = useState(getCurrentMonthDates());
 
+  // Function to fetch unique users statistics with date range
+  const fetchUniqueUsersStats = async (startDate, endDate, includeDaily = includeDailyStats) => {
+    setIsLoadingUserStats(true);
+    try {
+      console.log(`Dashboard: Fetching data for range ${startDate} to ${endDate}, includeDaily: ${includeDaily}`);
+      const uniqueUsersData = await DashboardService.getUniqueUsersStats(startDate, endDate, includeDaily);
+      console.log('Dashboard: Data received:', uniqueUsersData);
+      setUniqueUsersStats(uniqueUsersData);
+    } catch (error) {
+      console.error('Dashboard: Failed to fetch unique users statistics', error);
+      // Show error to user
+      alert(`Error fetching user statistics: ${error.message}`);
+    } finally {
+      setIsLoadingUserStats(false);
+    }
+  };
+  
   // Fetch all data needed for the dashboard
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -43,6 +77,9 @@ const Dashboard = () => {
       try {
         // Fetch conversations from Redux
         dispatch(fetchConversations());
+        
+        // Fetch unread conversation stats
+        dispatch(fetchUnreadStats());
         
         // Fetch applications from Redux
         dispatch(fetchApplications());
@@ -60,6 +97,9 @@ const Dashboard = () => {
         setStats(statsData);
         setActivities(activitiesData);
         setPerformance(performanceData);
+        
+        // Fetch unique users stats with current date filter
+        await fetchUniqueUsersStats(dateFilter.startDate, dateFilter.endDate, includeDailyStats);
       } catch (error) {
         console.error('Failed to fetch dashboard data', error);
       } finally {
@@ -88,6 +128,8 @@ const Dashboard = () => {
             Refresh Data
           </Button>
         </div>
+        
+        {/* Date Filter Bar removed */}
         
         {/* Greeting Card */}
         <DashboardSection 
@@ -123,7 +165,7 @@ const Dashboard = () => {
             value={
               conversationsLoading 
                 ? '...' 
-                : conversations.filter(c => c.status === 'TRANSFERRED').length
+                : totalUnreadCount
             }
             icon={
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -132,7 +174,7 @@ const Dashboard = () => {
             }
             iconClass="bg-yellow-100 text-yellow-600"
             isLoading={conversationsLoading}
-            description="Awaiting agent response"
+            description="Unread messages"
           />
           
           <StatCard
@@ -151,48 +193,6 @@ const Dashboard = () => {
             isLoading={conversationsLoading}
             description="In progress"
           />
-          
-          {/* <StatCard
-            title="IPP Applications"
-            value={
-              applicationsLoading
-                ? '...'
-                : applications.length
-            }
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            }
-            iconClass="bg-indigo-100 text-indigo-600"
-            isLoading={applicationsLoading}
-            description={
-              <Link to="/applications" className="text-indigo-600 hover:underline">
-                View all IPP applications
-              </Link>
-            }
-          /> */}
-          
-          {/* <StatCard
-            title="LIB Flex Applications"
-            value={
-              libApplicationsLoading
-                ? '...'
-                : libApplications.length
-            }
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            }
-            iconClass="bg-purple-100 text-purple-600"
-            isLoading={libApplicationsLoading}
-            description={
-              <Link to="/lib-applications" className="text-purple-600 hover:underline">
-                View all LIB applications
-              </Link>
-            }
-          /> */}
           
           <StatCard
             title="Avg. Response Time"
@@ -300,16 +300,17 @@ const Dashboard = () => {
             </DashboardSection>
           </div>
           
-          {/* Activity Feed */}
+          {/* Daily User Statistics */}
           <div>
             <DashboardSection 
-              title="Your Activity"
-              description="Recent actions and updates"
-              isLoading={isLoading}
+              title="Daily User Statistics"
+              description="Daily breakdown of user interactions"
+              isLoading={isLoadingUserStats}
             >
-              <ActivityFeed 
-                activities={activities} 
-                isLoading={isLoading} 
+              <DailyUserStats 
+                dailyStats={uniqueUsersStats?.daily || []} 
+                isLoading={isLoadingUserStats}
+                hasDailyData={includeDailyStats && Boolean(uniqueUsersStats?.daily)}
               />
             </DashboardSection>
           </div>
@@ -317,166 +318,141 @@ const Dashboard = () => {
         
         {/* Main Content - Second Row - Applications Sections */}
         <div className="grid grid-cols-1 gap-6">
-          {/* Recent IPP Applications */}
-          <DashboardSection 
-            title="Recent IPP Applications"
-            isLoading={applicationsLoading}
-            action={
-              <Link to="/applications">
-                <Button variant="link" size="sm">View All IPP Applications</Button>
-              </Link>
-            }
-          >
-            {applicationsLoading ? (
-              <LoadingSkeleton type="table" count={3} />
-            ) : applications.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="bg-muted/50 border-b">
-                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Customer</th>
-                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Form Type</th>
-                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
-                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Submitted</th>
-                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {applications.slice(0, 3).map((application) => (
-                      <tr key={application.id} className="hover:bg-muted/30">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 text-sm font-medium">
-                              {application.customer.name.charAt(0)}
-                            </div>
-                            <div className="ml-3">
-                              <p className="text-sm font-medium">{application.customer.name}</p>
-                              <p className="text-xs text-muted-foreground">{application.customer.phone_number}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-sm">{application.form_type}</td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            application.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-800' :
-                            application.status === 'PENDING_DOCUMENTS' ? 'bg-yellow-100 text-yellow-800' :
-                            application.status === 'UNDER_REVIEW' ? 'bg-purple-100 text-purple-800' :
-                            application.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                            application.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {application.status.replace(/_/g, ' ')}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground">
-                          {new Date(application.submission_date).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 px-4 text-sm">
-                          <Link
-                            to={`/applications/${application.id}`}
-                            className="text-indigo-600 hover:text-indigo-900 mr-3"
-                          >
-                            View
-                          </Link>
-                          <Link
-                            to={`/conversations/${application.conversation_id}`}
-                            className="text-gray-600 hover:text-gray-900"
-                          >
-                            Chat
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No IPP applications found
-              </div>
-            )}
-          </DashboardSection>
-          
-          {/* Recent LIB Flex Applications */}
-          <DashboardSection 
-            title="Recent LIB Flex Applications"
-            isLoading={libApplicationsLoading}
-            action={
-              <Link to="/lib-applications">
-                <Button variant="link" size="sm">View All LIB Flex Applications</Button>
-              </Link>
-            }
-          >
-            {libApplicationsLoading ? (
-              <LoadingSkeleton type="table" count={3} />
-            ) : libApplications.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="bg-muted/50 border-b">
-                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Customer</th>
-                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Policy Type</th>
-                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
-                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Submitted</th>
-                      <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {libApplications.slice(0, 3).map((application) => (
-                      <tr key={application.id} className="hover:bg-muted/30">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-sm font-medium">
-                              {application.customer.name.charAt(0)}
-                            </div>
-                            <div className="ml-3">
-                              <p className="text-sm font-medium">{application.customer.name}</p>
-                              <p className="text-xs text-muted-foreground">{application.customer.phone_number}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-sm">{application.form_data.policy_details.policy_type}</td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            application.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-800' :
-                            application.status === 'PENDING_DOCUMENTS' ? 'bg-yellow-100 text-yellow-800' :
-                            application.status === 'UNDER_REVIEW' ? 'bg-purple-100 text-purple-800' :
-                            application.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                            application.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {application.status.replace(/_/g, ' ')}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground">
-                          {new Date(application.submission_date).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 px-4 text-sm">
-                          <Link
-                            to={`/lib-applications/${application.id}`}
-                            className="text-purple-600 hover:text-purple-900 mr-3"
-                          >
-                            View
-                          </Link>
-                          <Link
-                            to={`/conversations/${application.conversation_id}`}
-                            className="text-gray-600 hover:text-gray-900"
-                          >
-                            Chat
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No LIB Flex applications found
-              </div>
-            )}
-          </DashboardSection>
+          {/* Applications sections removed per request */}
+          {/* Both IPP and LIB Flex Applications sections are hidden */}
         </div>
+        
+        {/* User Stats */}
+        <DashboardSection
+          title="User Interaction Statistics"
+          description={`Statistics for period: ${uniqueUsersStats?.summary?.start_date || dateFilter.startDate} to ${uniqueUsersStats?.summary?.end_date || dateFilter.endDate}`}
+          isLoading={isLoading}
+          action={
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2">
+                <label htmlFor="startDate" className="text-sm">From:</label>
+                <input
+                  id="startDate"
+                  type="date"
+                  className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                  value={dateFilter.startDate}
+                  onChange={(e) => setDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <label htmlFor="endDate" className="text-sm">To:</label>
+                <input
+                  id="endDate"
+                  type="date"
+                  className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                  value={dateFilter.endDate}
+                  onChange={(e) => setDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                />
+              </div>
+              <div className="flex items-center space-x-1">
+                <input
+                  id="includeDailyStats"
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  checked={includeDailyStats}
+                  onChange={(e) => setIncludeDailyStats(e.target.checked)}
+                />
+                <label htmlFor="includeDailyStats" className="text-sm ml-1">
+                  Include Daily Data
+                </label>
+              </div>
+              <Button 
+                size="sm" 
+                onClick={() => fetchUniqueUsersStats(dateFilter.startDate, dateFilter.endDate, includeDailyStats)}
+                disabled={isLoadingUserStats}
+              >
+                {isLoadingUserStats ? 'Loading...' : 'Apply'}
+              </Button>
+            </div>
+          }
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            {/* First row - Summary metrics */}
+            <div className="bg-muted/20 p-4 rounded-lg border-l-4 border-blue-500">
+              <h3 className="text-sm font-medium mb-1">Total Unique Users</h3>
+              {isLoadingUserStats ? (
+                <LoadingSkeleton className="h-8 w-20 mb-1" />
+              ) : (
+                <div className="flex items-end">
+                  <span className="text-3xl font-bold mr-1">{uniqueUsersStats?.summary?.total_unique_users || 0}</span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">Total unique customers in selected period</p>
+            </div>
+            
+            <div className="bg-muted/20 p-4 rounded-lg border-l-4 border-green-500">
+              <h3 className="text-sm font-medium mb-1">New Users</h3>
+              {isLoadingUserStats ? (
+                <LoadingSkeleton className="h-8 w-20 mb-1" />
+              ) : (
+                <div className="flex items-end">
+                  <span className="text-3xl font-bold mr-1">{uniqueUsersStats?.summary?.total_new_users || 0}</span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">First-time users in selected period</p>
+            </div>
+            
+            <div className="bg-muted/20 p-4 rounded-lg border-l-4 border-purple-500">
+              <h3 className="text-sm font-medium mb-1">Bot Handling Rate</h3>
+              {isLoadingUserStats ? (
+                <LoadingSkeleton className="h-8 w-20 mb-1" />
+              ) : (
+                <div className="flex items-end">
+                  <span className="text-3xl font-bold mr-1">
+                    {uniqueUsersStats?.summary?.total_unique_users ? 
+                      Math.round((uniqueUsersStats.summary.total_bot_users / uniqueUsersStats.summary.total_unique_users) * 100) : 0}%
+                  </span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">Percentage of users handled by bot</p>
+            </div>
+            
+            {/* Second row - User interaction breakdown */}
+            <div className="bg-muted/20 p-4 rounded-lg">
+              <h3 className="text-sm font-medium mb-1">Automated Interaction</h3>
+              {isLoadingUserStats ? (
+                <LoadingSkeleton className="h-8 w-20 mb-1" />
+              ) : (
+                <div className="flex items-end">
+                  <span className="text-2xl font-bold mr-1">{uniqueUsersStats?.summary?.total_bot_users || 0}</span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">Users served by bot only</p>
+            </div>
+            
+            <div className="bg-muted/20 p-4 rounded-lg">
+              <h3 className="text-sm font-medium mb-1">Human Interaction</h3>
+              {isLoadingUserStats ? (
+                <LoadingSkeleton className="h-8 w-20 mb-1" />
+              ) : (
+                <div className="flex items-end">
+                  <span className="text-2xl font-bold mr-1">{uniqueUsersStats?.summary?.total_agent_users || 0}</span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">Users served by agents only</p>
+            </div>
+            
+            <div className="bg-muted/20 p-4 rounded-lg">
+              <h3 className="text-sm font-medium mb-1">Mixed Interaction</h3>
+              {isLoadingUserStats ? (
+                <LoadingSkeleton className="h-8 w-20 mb-1" />
+              ) : (
+                <div className="flex items-end">
+                  <span className="text-2xl font-bold mr-1">{uniqueUsersStats?.summary?.total_mixed_users || 0}</span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">Users served by both bot and agents</p>
+            </div>
+          </div>
+        </DashboardSection>
+        
+        {/* Message Statistics */}
+        <MessageStatistics />
         
         {/* Performance Stats */}
         <DashboardSection

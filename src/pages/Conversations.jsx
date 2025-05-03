@@ -4,7 +4,8 @@ import {
   fetchConversations, 
   updateFilters,
   clearFilters,
-  selectFilteredConversations
+  selectFilteredConversations,
+  selectTotalUnreadCount
 } from '../redux/slices/conversationsSlice';
 import DashboardLayout from '../layouts/DashboardLayout';
 import ConversationList from '../components/conversations/ConversationList';
@@ -22,6 +23,9 @@ const ConversationsList = () => {
   
   // Use the selector to get filtered conversations
   const filteredConversations = useSelector(selectFilteredConversations);
+  
+  // Get total unread message count
+  const totalUnreadCount = useSelector(selectTotalUnreadCount);
   
   // Loading state
   const isLoading = loadingStatus.fetchConversations === 'pending';
@@ -46,7 +50,14 @@ const ConversationsList = () => {
       <div className="h-full flex flex-col">
         <div className="mb-4">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold tracking-tight">Conversations</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight">Conversations</h1>
+              {totalUnreadCount > 0 && (
+                <span className="flex items-center justify-center h-6 min-w-6 px-1.5 rounded-full bg-blue-500 text-white text-sm font-bold">
+                  {totalUnreadCount}
+                </span>
+              )}
+            </div>
             <div className="flex space-x-2">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
@@ -62,14 +73,19 @@ const ConversationsList = () => {
                 />
               </div>
               <Button 
-                variant="outline" 
+                variant={totalUnreadCount > 0 ? "default" : "outline"}
                 onClick={handleRefresh}
-                className="flex items-center space-x-1"
+                className="flex items-center space-x-1 relative"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 <span>Refresh</span>
+                {totalUnreadCount > 0 && (
+                  <span className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold">
+                    {totalUnreadCount}
+                  </span>
+                )}
               </Button>
             </div>
           </div>

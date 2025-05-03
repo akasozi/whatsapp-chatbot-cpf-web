@@ -45,6 +45,7 @@ class SocketService {
         return;
       }
       
+      // https://whatsapp-api.cloudflow.co.ke/api/v1
       // Get base URL from environment
       const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       

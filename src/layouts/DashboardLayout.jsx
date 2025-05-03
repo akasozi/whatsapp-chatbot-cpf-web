@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../redux/slices/authSlice';
+import ToastManager from '../components/ui/ToastManager';
+import NotificationBell from '../components/ui/NotificationBell';
 
 const DashboardLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -17,13 +19,16 @@ const DashboardLayout = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-gray-100">
+      {/* Toast notifications */}
+      <ToastManager />
+      
       {/* Sidebar */}
       <div className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white shadow h-full transition-width duration-300 ease-in-out`}>
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-4 border-b">
-            <h1 className={`text-xl font-bold text-primary ${!isSidebarOpen && 'hidden'}`}>Agent Portal</h1>
-            {!isSidebarOpen && <span className="text-xl font-bold text-primary">AP</span>}
+            <h1 className={`text-xl font-bold text-primary ${!isSidebarOpen && 'hidden'}`}>CS Whatsapp Portal</h1>
+            {!isSidebarOpen && <span className="text-xl font-bold text-primary">CS</span>}
           </div>
 
           {/* Navigation Links */}
@@ -98,8 +103,11 @@ const DashboardLayout = ({ children }) => {
         {/* Top Header */}
         <div className="bg-white shadow-sm p-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Agent Portal</h2>
-            {/* Add notification bell, settings, etc. here */}
+            <h2 className="text-xl font-semibold">CS Whatsapp Portal</h2>
+            <div className="flex items-center space-x-4">
+              {/* Notification bell */}
+              <NotificationBell />
+            </div>
           </div>
         </div>
 

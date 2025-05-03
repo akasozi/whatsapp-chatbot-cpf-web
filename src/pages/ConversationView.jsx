@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   fetchConversationDetails, 
-  selectConversation 
+  selectConversation,
+  markConversationAsSeen
 } from '../redux/slices/conversationsSlice';
 import { fetchApplications } from '../redux/slices/applicationsSlice';
 import { fetchLibApplications } from '../redux/slices/libApplicationsSlice';
@@ -25,6 +26,7 @@ import ConversationDetailHeader from '../components/conversations/ConversationDe
 import TicketPanel from '../components/tickets/TicketPanel';
 import Modal from '../components/ui/modal';
 import { Button } from '../components/ui/button';
+import ErrorBoundary from '../components/ui/ErrorBoundary';
 
 const ConversationView = () => {
   const { id } = useParams();
@@ -65,35 +67,37 @@ const ConversationView = () => {
   const conversation = id ? conversationsById[id] : null;
   
   // Get all issues from the store
-  const { byId: issuesById } = useSelector((state) => state.issues);
+  const { byId: issuesById = {} } = useSelector((state) => state.issues || {});
   
   // Get issues for this conversation
-  const issueIds = id ? (issuesByConversation[id] || []) : [];
-  const issues = issueIds.map(issueId => issuesById[issueId]).filter(Boolean);
+  const issueIds = id ? (issuesByConversation?.[id] || []) : [];
+  const issues = issueIds.map(issueId => issuesById?.[issueId]).filter(Boolean);
   
   // Get all tickets from the store
-  const { byId: ticketsById } = useSelector((state) => state.tickets);
+  const { byId: ticketsById = {} } = useSelector((state) => state.tickets || {});
   
   // Get tickets for this conversation
-  const ticketIds = id ? (ticketsByConversation[id] || []) : [];
-  const tickets = ticketIds.map(ticketId => ticketsById[ticketId]).filter(Boolean);
+  const ticketIds = id ? (ticketsByConversation?.[id] || []) : [];
+  const tickets = ticketIds.map(ticketId => ticketsById?.[ticketId]).filter(Boolean);
   
   // Get IPP applications for this customer's phone number
   const applications = useSelector((state) => {
     const phone = conversation?.phone_number;
     if (!phone) return [];
+    if (!state.applications?.allIds) return [];
     return state.applications.allIds
-      .map(id => state.applications.byId[id])
-      .filter(app => app.customer.phone_number === phone);
+      .map(id => state.applications.byId?.[id])
+      .filter(app => app && app.customer?.phone_number === phone);
   });
   
   // Get LIB applications for this customer's phone number
   const libApplications = useSelector((state) => {
     const phone = conversation?.phone_number;
     if (!phone) return [];
+    if (!state.libApplications?.allIds) return [];
     return state.libApplications.allIds
-      .map(id => state.libApplications.byId[id])
-      .filter(app => app.customer.phone_number === phone);
+      .map(id => state.libApplications.byId?.[id])
+      .filter(app => app && app.customer?.phone_number === phone);
   });
   
   // Get the selected issue
@@ -115,6 +119,9 @@ const ConversationView = () => {
       dispatch(selectConversation(id));
       dispatch(fetchConversationDetails(id));
       
+      // Mark conversation as seen when it's opened
+      dispatch(markConversationAsSeen(id));
+      
       // Fetch issues for this conversation
       dispatch(fetchIssues(id));
       
@@ -133,6 +140,23 @@ const ConversationView = () => {
       dispatch(selectConversation(null));
       dispatch(selectIssue(null));
       dispatch(selectTicket(null));
+    };
+  }, [dispatch, id]);
+  
+  // Mark messages as seen when window regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (id) {
+        dispatch(markConversationAsSeen(id));
+      }
+    };
+
+    // Add focus event listener
+    window.addEventListener('focus', handleFocus);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('focus', handleFocus);
     };
   }, [dispatch, id]);
   
@@ -279,12 +303,15 @@ const ConversationView = () => {
           <div className="flex-1 flex flex-col overflow-hidden bg-muted/10">
             {/* Message list with WhatsApp-like styling */}
             <div className="flex-1 overflow-y-auto p-4" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z" fill="rgba(0,0,0,0.025)" fill-rule="evenodd"/%3E%3C/svg%3E")', backgroundRepeat: 'repeat'}}>
-              {/* WhatsApp style message bubbles */}
-              <MessageList 
-                messages={messages}
-                currentIssueId={selectedIssueId}
-                isLoading={isConversationLoading}
-              />
+              {/* WhatsApp style message bubbles with error boundary */}
+              <ErrorBoundary>
+                <MessageList 
+                  messages={messages}
+                  currentIssueId={selectedIssueId}
+                  isLoading={isConversationLoading}
+                  conversationId={id}
+                />
+              </ErrorBoundary>
             </div>
             
             {/* Message input with WhatsApp-like styling */}

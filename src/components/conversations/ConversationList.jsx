@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { selectConversation, updateFilters } from '../../redux/slices/conversationsSlice';
-import { Button } from '../../components/ui/button';
+import { 
+  selectConversation, 
+  updateFilters
+} from '../../redux/slices/conversationsSlice';
+import ConversationItemRow from './ConversationItemRow';
 
 /**
  * ConversationList component displays a list of conversations with filtering options
@@ -126,63 +128,14 @@ const ConversationList = ({
               </thead>
               <tbody className="divide-y divide-border">
                 {conversations.map((conversation) => (
-                  <tr 
-                    key={conversation.id} 
-                    className={`hover:bg-muted/30 cursor-pointer ${selectedId === conversation.id ? 'bg-muted/50' : ''}`}
-                    onClick={() => handleSelect(conversation.id)}
-                  >
-                    <td className="py-3 px-4">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center text-primary text-sm font-medium">
-                          {conversation.customer_name.charAt(0)}
-                        </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-medium">{conversation.customer_name}</p>
-                          <p className="text-xs text-muted-foreground">{conversation.phone_number}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-sm">
-                      <div className="max-w-xs truncate">
-                        {conversation.lastMessage?.content || "No messages yet"}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(conversation.status)}`}>
-                        {conversation.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      {conversation.assignee_id ? (
-                        <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-1">
-                          Assigned
-                        </span>
-                      ) : (
-                        <span className="text-xs bg-yellow-100 text-yellow-800 rounded-full px-2 py-1">
-                          Unassigned
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      {conversation.ticket && (conversation.ticket.ticket_number || conversation.ticket.id) ? (
-                        <span className="text-xs bg-blue-100 text-blue-800 rounded-full px-2 py-1">
-                          {conversation.ticket.ticket_number || `T-${conversation.ticket.id}`}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">None</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-muted-foreground">
-                      {formatTime(conversation.last_activity || conversation.updated_at)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={`/conversations/${conversation.id}`}>
-                          View
-                        </Link>
-                      </Button>
-                    </td>
-                  </tr>
+                  <ConversationItemRow
+                    key={conversation.id}
+                    conversation={conversation}
+                    selectedId={selectedId}
+                    handleSelect={handleSelect}
+                    getStatusBadge={getStatusBadge}
+                    formatTime={formatTime}
+                  />
                 ))}
               </tbody>
             </table>

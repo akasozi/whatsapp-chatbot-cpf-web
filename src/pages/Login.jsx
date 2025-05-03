@@ -32,7 +32,7 @@ const Login = () => {
     <div className="flex items-center justify-center min-h-screen bg-muted/50">
       <div className="w-full max-w-md p-8 space-y-8 bg-card rounded-xl shadow-lg">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-primary">Agent Portal</h1>
+          <h1 className="text-3xl font-bold text-primary">Customer Service Portal</h1>
           <p className="mt-2 text-muted-foreground">Sign in to your account</p>
           {/* <div className="mt-2 p-2 bg-primary/10 rounded text-xs text-muted-foreground">
             Development credentials pre-filled: <br />

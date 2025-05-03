@@ -828,6 +828,92 @@ const ConversationsService = {
     const attachment = message.attachments.find(att => att.id === attachmentId);
     
     return attachment;
+  },
+  
+  // Mark conversation as seen/read
+  async markConversationAsSeen(conversationId) {
+    if (USE_MOCK_DATA) {
+      await mockDelay();
+      
+      // In mock mode, just return success with the conversation ID
+      return {
+        success: true,
+        updated_count: 3,
+        conversation_id: conversationId
+      };
+    } else {
+      try {
+        console.log(`Marking conversation ${conversationId} as seen`);
+        const url = `messages/agent/conversations/${conversationId}/mark-seen`;
+        
+        // Make the API request
+        const response = await api.post(url);
+        
+        console.log('Mark as seen response:', response.data);
+        
+        // Return the response data, or a standard format if not available
+        return response.data || {
+          success: true,
+          updated_count: 1,
+          conversation_id: conversationId
+        };
+      } catch (error) {
+        console.error('Error marking conversation as seen:', error);
+        throw error;
+      }
+    }
+  },
+  
+  // Get unread message statistics
+  async getUnreadStats() {
+    if (USE_MOCK_DATA) {
+      await mockDelay();
+      
+      // Generate mock unread statistics
+      const unreadCounts = {};
+      let totalUnread = 0;
+      const unreadConversations = [];
+      
+      mockConversationsData.forEach(conv => {
+        // Randomly mark some conversations as having unread messages
+        if (Math.random() > 0.7) {
+          const count = Math.floor(Math.random() * 5) + 1;
+          unreadCounts[conv.id] = count;
+          totalUnread += count;
+          unreadConversations.push(conv.id);
+        }
+      });
+      
+      return {
+        total_unread_messages: totalUnread,
+        conversations_with_unread: unreadConversations.length,
+        conversation_unread_counts: unreadCounts,
+        unread_notifications: Math.floor(Math.random() * 5),
+        unread_conversations: unreadConversations
+      };
+    } else {
+      try {
+        console.log('Fetching unread message statistics');
+        
+        const url = 'messages/agent/unread-stats';
+        const response = await api.get(url);
+        
+        console.log('Unread stats response:', response.data);
+        
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching unread statistics:', error);
+        
+        // Return a default empty structure on error
+        return {
+          total_unread_messages: 0,
+          conversations_with_unread: 0,
+          conversation_unread_counts: {},
+          unread_notifications: 0,
+          unread_conversations: []
+        };
+      }
+    }
   }
 };
 
